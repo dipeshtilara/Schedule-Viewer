@@ -85,11 +85,6 @@ if 'successful_views' not in st.session_state:
 if 'locked' not in st.session_state:
     st.session_state.locked = False
 
-with st.expander("Admin / debug (reset successful-view counter)"):
-    if st.button("Reset successful-view counter for this session"):
-        st.session_state.successful_views = 0
-        st.session_state.locked = False
-        st.success("Session counter reset.")
 
 # ---------- UI: selection & behavior ----------
 if st.session_state.locked:
