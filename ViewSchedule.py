@@ -15,57 +15,9 @@ import os
 import re
 import streamlit as st
 import pandas as pd
-import calendar
-from dateutil.parser import parse as parse_date  # used for day normalization if needed
-
-# canonical weekday order (Monday → Saturday)
-WEEK_ORDER = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday"]
-WEEK_MAP = {name: idx for idx, name in enumerate(WEEK_ORDER)}
 
 st.set_page_config(page_title="Teacher Timetable Viewer", layout="wide")
 st.title("Teacher — Weekly Timetable Viewer")
-
-def normalize_day_value(val):
-    """
-    Convert val (string or date) to a canonical weekday name (lowercase),
-    or return None if it can't be resolved.
-    Handles:
-      - 'Monday', 'mon', 'MON', 'Mon'
-      - numeric dates like '2025-11-03' (will be parsed to weekday)
-      - strings with extra whitespace / casing
-    """
-    if pd.isna(val):
-        return None
-    s = str(val).strip()
-    if s == "":
-        return None
-
-    s_lower = s.lower()
-    short_map = {
-        "mon": "monday", "monday": "monday",
-        "tue": "tuesday", "tues": "tuesday", "tuesday": "tuesday",
-        "wed": "wednesday", "weds": "wednesday", "wednesday": "wednesday",
-        "thu": "thursday", "thurs": "thursday", "thursday": "thursday",
-        "fri": "friday", "friday": "friday",
-        "sat": "saturday", "saturday": "saturday",
-        "sun": "sunday", "sunday": "sunday"
-    }
-    if s_lower in short_map:
-        return short_map[s_lower]
-
-    # try to parse as a date
-    try:
-        dt = parse_date(s, dayfirst=True, fuzzy=True)
-        return calendar.day_name[dt.weekday()].lower()  # monday, tuesday...
-    except Exception:
-        pass
-
-    # fallback: try to find any weekday substring inside the string
-    for wk in WEEK_ORDER + ["sunday"]:
-        if wk in s_lower:
-            return wk
-
-    return None
 
 # ---------- CONFIG ----------
 LOCAL_FILENAME = "timetableNov25.xlsx"   # must be present next to this script
@@ -92,59 +44,22 @@ def detect_period_columns(df):
     expected = sorted(period_cols, key=lambda x: int(re.findall(r'\d+', x)[0]))
     return expected
 
-def cell_has_class(val, period_name=None):
-    """
-    Return True if this cell counts as a class period for counting purposes.
-    Rules:
-      - Empty/NaN -> False
-      - For zero period (period_name 'p0', case-insensitive): only count if 'skill' appears in the cell text (case-insensitive)
-      - If cell explicitly indicates 'zero pd' / '0 pd' / 'zero' -> False unless it contains 'skill'
-      - All other non-empty cells count as class
-    """
-    if pd.isna(val):
-        return False
-    s = str(val).strip()
-    if s == "":
-        return False
-    s_lower = s.lower()
-
-    # p0 special handling: only count if it contains 'skill'
-    if period_name and period_name.lower() == "p0":
-        return "skill" in s_lower
-
-    # explicit zero pd indicators -> ignore unless mentions skill
-    if (("zero pd" in s_lower) or (s_lower == "0 pd") or (s_lower == "zero")) and ("skill" not in s_lower):
-        return False
-
-    # otherwise counted
-    return True
-
 def count_periods_for_rows(rows, expected_periods):
-    """
-    Count total periods and periods per day for a given teacher rows DataFrame.
-    Uses cell_has_class to decide counting, particularly for p0.
-    Returns (total, per_day_list) where per_day_list is ordered by weekday order if possible.
-    """
     total = 0
     per_day = []
     if rows.empty:
         return total, per_day
-
     for day_name, grp in rows.groupby('day'):
         day_count = 0
         for _, r in grp.iterrows():
             for p in expected_periods:
                 v = r.get(p, None)
-                if cell_has_class(v, p):
+                if pd.notna(v) and str(v).strip() != "":
                     day_count += 1
         per_day.append({"day": day_name, "periods_on_day": day_count})
         total += day_count
-
-    # sort per_day by weekday order if possible, otherwise unknowns go last
-    def _day_sort_key(day_val):
-        dn = normalize_day_value(day_val)
-        return WEEK_MAP.get(dn, 999)
-    per_day_sorted = sorted(per_day, key=lambda x: _day_sort_key(x["day"]))
+    # sort per_day by day string for consistent display
+    per_day_sorted = sorted(per_day, key=lambda x: str(x["day"]))
     return total, per_day_sorted
 
 # ---------- Load local timetable (no uploader) ----------
@@ -219,28 +134,10 @@ if view_button:
                 views_left_after = MAX_ATTEMPTS - next_count
 
                 st.success(f"Aapka timetable mil gaya: {name_choice}")
-
-                # Sort day-wise (Mon → Tue → Wed → Thu → Fri → Sat)
                 try:
-                    teacher_rows = teacher_rows.copy()
-                    # create normalized day and mapped order (unknown days get large index)
-                    teacher_rows['day_norm'] = teacher_rows['day'].apply(normalize_day_value)
-                    teacher_rows['day_order'] = teacher_rows['day_norm'].map(WEEK_MAP).fillna(999).astype(int)
-                    teacher_rows['_orig_idx'] = teacher_rows.index
-
-                    # Sort first by day_order, then by original index for stable display
-                    teacher_rows = teacher_rows.sort_values(by=['day_order', '_orig_idx'])
-
-                    # remove helper cols if present
-                    for c in ['day_norm', 'day_order', '_orig_idx']:
-                        if c in teacher_rows.columns:
-                            teacher_rows = teacher_rows.drop(columns=[c])
+                    teacher_rows = teacher_rows.sort_values(by='day')
                 except Exception:
-                    # fallback to original alphabetical if anything goes wrong
-                    try:
-                        teacher_rows = teacher_rows.sort_values(by='day')
-                    except Exception:
-                        pass
+                    pass
 
                 st.write(f"### Weekly timetable for {name_choice}")
                 st.dataframe(teacher_rows.reset_index(drop=True))
@@ -263,8 +160,11 @@ if view_button:
                     st.info("Aapne abhi apna antim (5th) view istemal kiya. Agla view allowed nahi hoga.")
                     st.session_state.locked = True
 
-                # Optional reset button removed from main UI to avoid bypassing the 5 attempts
-                # (If an admin reset is required, add a protected mechanism.)
+                # Offer optional reset button after successful view
+                if st.button("Done — clear successful-view counter for this session"):
+                    st.session_state.successful_views = 0
+                    st.session_state.locked = False
+                    st.success("Session counter cleared.")
 
 # ---------- Footer ----------
 st.caption(f"Session successful displays used: {st.session_state.successful_views} / {MAX_ATTEMPTS}")
