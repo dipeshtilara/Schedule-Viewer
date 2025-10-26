@@ -175,5 +175,5 @@ if view_button:
 st.caption(f"Session successful displays used: {st.session_state.successful_views} / {MAX_ATTEMPTS}")
 preview_left = MAX_ATTEMPTS - st.session_state.successful_views
 if preview_left <= 2 and preview_left > 0:
-    st.warning(f"Suchetan: Aapke paas ab {preview_left} successful timetable views shesh hain.")
-st.caption("Note: This app requires the local file 'timetableNov25.xlsx' to be present next to this script. No upload option is shown to users.")
+    st.warning(f"Please Note: Aapke paas ab {preview_left} successful timetable views shesh hain. Kripya Apne timetable me hi interested rahe ")
+st.caption("Thank you for your prompt action. Applicable from Monday i.e. 27 Nov onwards")
