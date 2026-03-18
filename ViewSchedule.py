@@ -1,7 +1,7 @@
 # teacher_viewer.py
 """
 Teacher — Weekly Timetable Viewer (single-file Streamlit app)
-- Automatically loads local file 'timetableNov25.xlsx' (no uploader).
+- Automatically loads local file 'TT_apr26.xlsx' (no uploader).
 - Auto-detects period columns (p0, p1, ...), fallback to p0..p8.
 - Searchable dropdown (selectbox) for teacher names (type-to-filter).
 - Each successful display counts as one attempt. Max 5 successful displays per session.
@@ -68,7 +68,7 @@ def normalize_day_value(val):
     return None
 
 # ---------- CONFIG ----------
-LOCAL_FILENAME = "timetableNov25.xlsx"   # must be present next to this script
+LOCAL_FILENAME = "TT_apr26.xlsx"   # must be present next to this script
 DEFAULT_PERIOD_COUNT = 9
 MAX_ATTEMPTS = 5
 
