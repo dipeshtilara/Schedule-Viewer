@@ -271,4 +271,4 @@ st.caption(f"Session successful displays used: {st.session_state.successful_view
 preview_left = MAX_ATTEMPTS - st.session_state.successful_views
 if preview_left <= 2 and preview_left > 0:
     st.warning(f"Please Note: Aapke paas ab {preview_left} successful timetable views shesh hain. Kripya Apne timetable me hi interested rahe ")
-st.caption("Thank you for your prompt action. Applicable from Monday i.e. 27 Nov onwards")
+st.caption("Thank you for your prompt action. Applicable from Wednesday i.e. 'April 1 2026' onwards")
